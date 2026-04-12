@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>상품구매신청서 | 구매관리 시스템</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.27.0/lib/msal-browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg:#F2F1ED; --surface:#FFF; --surface2:#ECEAE4;
+  --border:#E0DDD5; --border2:#C9C6BE;
+  --text:#1C1B18; --text2:#6A6760; --text3:#A5A29B;
+  --accent:#0F4ACF; --accent-s:#0E43B8; --accent-light:#EBF0FD;
+  --red:#C0392B; --red-light:#FDECEA;
+  --green:#1E7E4B; --green-light:#EAF5EE;
+  --amber:#B05E0F; --amber-light:#FDF3E5;
+  --ms-blue:#0078D4;
+  --shadow:0 1px 3px rgba(0,0,0,0.07),0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:0 4px 16px rgba(0,0,0,0.09);
+  --r:8px; --rl:12px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+.app{display:flex;min-height:100vh;}
+.sidebar{width:224px;background:#111110;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;}
+.main{margin-left:224px;flex:1;display:flex;flex-direction:column;}
+/* sidebar */
+.sidebar-top{padding:22px 20px 18px;border-bottom:1px solid rgba(255,255,255,0.06);}
+.sidebar-brand{font-size:12px;font-weight:700;color:#fff;letter-spacing:.1em;}
+.sidebar-brand-sub{font-size:10px;color:rgba(255,255,255,.28);margin-top:2px;}
+.sidebar-user{padding:14px 16px;margin:8px;border-radius:var(--r);background:rgba(255,255,255,.05);display:flex;align-items:center;gap:10px;}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;}
+.user-name{font-size:12px;font-weight:500;color:rgba(255,255,255,.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.user-email{font-size:10px;color:rgba(255,255,255,.3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.user-role-badge{font-size:10px;padding:2px 7px;border-radius:3px;margin-top:3px;display:inline-block;}
+.role-approver1{background:rgba(176,94,15,.3);color:#FABC7A;}
+.role-approverFinal{background:rgba(15,74,207,.3);color:#90B0FF;}
+.role-viewer{background:rgba(30,126,75,.3);color:#7DD9A5;}
+.role-requester{background:rgba(255,255,255,.08);color:rgba(255,255,255,.4);}
+.sidebar-nav{flex:1;padding:6px 0;overflow-y:auto;}
+.nav-section{padding:12px 20px 4px;font-size:10px;font-weight:700;color:rgba(255,255,255,.2);letter-spacing:.1em;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;margin:1px 8px;cursor:pointer;color:rgba(255,255,255,.45);font-size:13px;transition:all .12s;border-radius:var(--r);border-left:2px solid transparent;}
+.nav-item:hover{color:rgba(255,255,255,.85);background:rgba(255,255,255,.05);}
+.nav-item.active{color:#fff;background:rgba(255,255,255,.08);border-left-color:#4B80FF;}
+.nav-icon{width:15px;height:15px;flex-shrink:0;opacity:.7;}
+.nav-item.active .nav-icon{opacity:1;}
+.nav-badge{margin-left:auto;background:#C0392B;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;min-width:18px;text-align:center;}
+.sidebar-footer{padding:14px 20px;border-top:1px solid rgba(255,255,255,.06);}
+.sp-status{display:flex;align-items:center;gap:7px;font-size:10px;}
+.sp-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.2);}
+.sp-dot.online{background:#22C55E;box-shadow:0 0 6px rgba(34,197,94,.5);}
+.sp-label{color:rgba(255,255,255,.3);}
+.sp-label.online{color:rgba(255,255,255,.5);}
+/* header */
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 32px;height:54px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;position:sticky;top:0;z-index:50;}
+.header-left{display:flex;align-items:center;gap:12px;}
+.header-title{font-size:14px;font-weight:500;}
+.sync-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:2px 10px;}
+.sync-dot{width:5px;height:5px;border-radius:50%;background:var(--text3);}
+.sync-dot.syncing{background:var(--amber);animation:pulse 1s infinite;}
+.sync-dot.synced{background:#22C55E;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.header-actions{display:flex;gap:8px;align-items:center;}
+.content{padding:28px 32px;flex:1;max-width:1200px;}
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--r);font-size:13px;font-family:inherit;font-weight:400;cursor:pointer;transition:all .12s;border:1px solid transparent;white-space:nowrap;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-primary:hover:not(:disabled){background:var(--accent-s);}
+.btn-approve{background:var(--green);color:#fff;border-color:var(--green);font-weight:500;}
+.btn-approve:hover:not(:disabled){background:#186040;}
+.btn-reject{background:var(--red-light);color:var(--red);border-color:rgba(192,57,43,.25);font-weight:500;}
+.btn-reject:hover:not(:disabled){background:#FBDAD7;}
+.btn-ms{background:var(--ms-blue);color:#fff;border-color:var(--ms-blue);font-weight:500;}
+.btn-ms:hover{background:#006CBF;}
+.btn-secondary{background:var(--surface);color:var(--text);border-color:var(--border2);}
+.btn-secondary:hover:not(:disabled){background:var(--surface2);}
+.btn-ghost{background:transparent;color:var(--text2);border-color:transparent;}
+.btn-ghost:hover{background:var(--surface2);color:var(--text);}
+.btn-danger{background:var(--red-light);color:var(--red);border-color:rgba(192,57,43,.2);}
+.btn-danger:hover{background:#FBDAD7;}
+.btn-sm{padding:5px 10px;font-size:12px;}
+/* cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);box-shadow:var(--shadow);}
+.card-header{padding:18px 24px 0;display:flex;align-items:center;justify-content:space-between;}
+.card-title{font-size:14px;font-weight:500;}
+.card-body{padding:20px 24px;}
+/* stats */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:18px 20px;box-shadow:var(--shadow);}
+.stat-label{font-size:11px;font-weight:500;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;}
+.stat-value{font-size:24px;font-weight:700;color:var(--text);font-family:'DM Mono',monospace;}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:4px;}
+.stat-accent{color:var(--accent);}
+/* form */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.field{display:flex;flex-direction:column;gap:5px;}
+.field label{font-size:12px;font-weight:500;color:var(--text2);}
+.field input,.field select,.field textarea{padding:8px 11px;border:1px solid var(--border);border-radius:var(--r);font-size:13px;font-family:inherit;background:var(--bg);color:var(--text);transition:border .15s,box-shadow .15s;outline:none;}
+.field input:focus,.field select:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(15,74,207,.08);}
+.field input[readonly]{color:var(--text2);cursor:default;}
+.sig-wrap{display:flex;align-items:center;gap:8px;}
+.sig-wrap input{flex:1;}
+.stamp{width:38px;height:38px;border:1.5px solid var(--border2);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text3);flex-shrink:0;}
+/* table */
+.table-wrap{overflow-x:auto;border-top:1px solid var(--border);margin-top:16px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th,td{border-bottom:1px solid var(--border);padding:0;}
+th{background:var(--surface2);font-weight:500;color:var(--text2);font-size:11px;padding:9px 8px;text-align:center;border-right:1px solid var(--border);white-space:nowrap;}
+th:last-child,td:last-child{border-right:none;}
+td{border-right:1px solid var(--border);vertical-align:middle;}
+td.no-cell{text-align:center;color:var(--text3);font-size:12px;padding:8px 4px;width:36px;}
+td.act-cell{width:36px;text-align:center;padding:6px;}
+td input{border:none;background:transparent;font-size:13px;font-family:inherit;color:var(--text);padding:9px 8px;width:100%;outline:none;}
+td input:focus{background:var(--accent-light);}
+td input.num{text-align:right;font-family:'DM Mono',monospace;font-size:12px;}
+td.total-cell{text-align:right;padding:9px 10px;font-family:'DM Mono',monospace;font-size:12px;}
+tfoot tr{background:var(--surface2);}
+.grand-label{text-align:right;color:var(--text2);font-size:12px;padding:10px 12px;}
+.grand-total{text-align:right;font-family:'DM Mono',monospace;font-size:14px;color:var(--accent);font-weight:500;padding:10px 10px;}
+.del-btn{background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;padding:3px 6px;border-radius:4px;}
+.del-btn:hover{background:var(--red-light);color:var(--red);}
+/* autocomplete */
+.product-wrap{position:relative;}
+.suggestions{position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);z-index:200;max-height:200px;overflow-y:auto;box-shadow:var(--shadow-md);}
+.sug-item{padding:9px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}
+.sug-item:hover{background:var(--accent-light);}
+.sug-name{font-size:13px;}
+.sug-price{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;}
+/* request list */
+.request-list{display:flex;flex-direction:column;gap:8px;}
+.request-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:14px 20px;box-shadow:var(--shadow);cursor:pointer;transition:border-color .12s,box-shadow .12s;display:flex;align-items:center;gap:12px;}
+.request-item:hover{border-color:var(--accent);box-shadow:var(--shadow-md);}
+.request-item.need-action{border-left:3px solid var(--amber);}
+.request-item-info{flex:1;min-width:0;}
+.request-item-title{font-size:14px;font-weight:500;margin-bottom:3px;}
+.request-item-meta{font-size:11px;color:var(--text2);display:flex;gap:14px;flex-wrap:wrap;align-items:center;}
+/* badges */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;}
+.badge-blue{background:var(--accent-light);color:var(--accent);}
+.badge-green{background:var(--green-light);color:var(--green);}
+.badge-amber{background:var(--amber-light);color:var(--amber);}
+.badge-red{background:var(--red-light);color:var(--red);}
+/* chips */
+.chips-wrap{display:flex;flex-wrap:wrap;gap:6px;padding:14px 24px 18px;border-top:1px solid var(--border);}
+.chip{padding:4px 12px;border-radius:999px;border:1px solid var(--border2);font-size:12px;cursor:pointer;color:var(--text2);background:var(--surface2);transition:all .12s;}
+.chip:hover{background:var(--accent-light);color:var(--accent);border-color:rgba(15,74,207,.3);}
+/* product grid */
+.product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;}
+.product-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px;box-shadow:var(--shadow);}
+/* approval timeline */
+.approval-timeline{background:var(--surface2);border-radius:var(--r);padding:16px 20px;margin-top:16px;}
+.approval-timeline-title{font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:12px;}
+.approval-steps{display:flex;align-items:center;gap:0;}
+.approval-step{flex:1;display:flex;flex-direction:column;align-items:center;position:relative;}
+.approval-step:not(:last-child)::after{content:'';position:absolute;top:14px;left:50%;right:-50%;height:2px;background:var(--border2);z-index:0;}
+.approval-step.done:not(:last-child)::after{background:var(--green);}
+.step-circle{width:28px;height:28px;border-radius:50%;border:2px solid var(--border2);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--text3);position:relative;z-index:1;}
+.approval-step.done .step-circle{background:var(--green);border-color:var(--green);color:#fff;}
+.approval-step.rejected .step-circle{background:var(--red);border-color:var(--red);color:#fff;}
+.approval-step.pending .step-circle{border-color:var(--amber);color:var(--amber);}
+.step-label{font-size:11px;color:var(--text2);margin-top:6px;text-align:center;}
+.step-sub{font-size:10px;color:var(--text3);text-align:center;margin-top:2px;}
+/* approve action box */
+.approve-action-box{background:linear-gradient(135deg,#FFF9F0,#FFF);border:1.5px solid rgba(176,94,15,.3);border-radius:var(--r);padding:16px 20px;margin-top:14px;}
+.approve-action-title{font-size:12px;font-weight:600;color:var(--amber);margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+.approve-action-final{background:linear-gradient(135deg,#F0F5FF,#FFF);border:1.5px solid rgba(15,74,207,.25);}
+.approve-action-final .approve-action-title{color:var(--accent);}
+.reject-reason-input{width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:var(--r);font-size:13px;font-family:inherit;outline:none;margin-top:8px;resize:none;}
+.reject-reason-input:focus{border-color:var(--red);}
+/* login */
+.login-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:48px 44px;box-shadow:0 8px 40px rgba(0,0,0,.1);max-width:420px;width:90%;text-align:center;}
+.login-logo{width:56px;height:56px;background:var(--accent);border-radius:12px;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;}
+.login-title{font-size:20px;font-weight:700;margin-bottom:6px;}
+.login-sub{font-size:13px;color:var(--text2);margin-bottom:28px;}
+.login-divider{display:flex;align-items:center;gap:12px;margin:20px 0;}
+.login-divider::before,.login-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+.login-divider span{font-size:11px;color:var(--text3);}
+.ms-signin-btn{width:100%;padding:11px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface);cursor:pointer;font-family:inherit;font-size:14px;font-weight:500;color:var(--text);display:flex;align-items:center;justify-content:center;gap:10px;transition:all .15s;}
+.ms-signin-btn:hover{background:var(--surface2);border-color:var(--ms-blue);}
+.ms-logo{width:20px;height:20px;}
+/* demo login buttons */
+.demo-btns{display:flex;flex-direction:column;gap:6px;margin-top:12px;}
+.demo-btn{width:100%;padding:8px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface);cursor:pointer;font-family:inherit;font-size:12px;color:var(--text2);text-align:left;padding-left:12px;transition:background .12s;}
+.demo-btn:hover{background:var(--surface2);}
+.demo-btn .demo-role{font-size:10px;float:right;color:var(--text3);}
+/* modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--surface);border-radius:var(--rl);box-shadow:0 24px 60px rgba(0,0,0,.18);width:680px;max-width:96vw;max-height:90vh;overflow-y:auto;transform:scale(.96);transition:transform .2s;}
+.modal-overlay.open .modal{transform:scale(1);}
+.modal-header{padding:20px 24px 0;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.modal-title{font-size:15px;font-weight:500;}
+.modal-close{background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;padding:4px 8px;border-radius:4px;line-height:1;}
+.modal-close:hover{color:var(--text);background:var(--surface2);}
+.modal-body{padding:0 24px 24px;}
+/* toast */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--text);color:#fff;padding:11px 18px;border-radius:var(--r);font-size:13px;z-index:9999;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;max-width:320px;box-shadow:var(--shadow-md);}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast.error{background:var(--red);}
+.toast.success{background:var(--green);}
+/* misc */
+.add-row-row{padding:10px 16px;border-top:1px dashed var(--border);}
+.empty-state{text-align:center;padding:64px 20px;color:var(--text3);}
+.empty-state-icon{font-size:40px;margin-bottom:12px;}
+.empty-state-text{font-size:14px;margin-bottom:16px;}
+.sp-info-row{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);padding:8px 0;border-top:1px solid var(--border);margin-top:12px;}
+.loader{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.config-banner{background:#FFF3CD;border:1px solid #FFC107;border-radius:var(--r);padding:12px 16px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start;}
+.config-banner-text{font-size:12px;color:#856404;}
+</style>
+</head>
+<body>
+
+<script>
+/* ════════════════════════════════════════════════════════
+   CONFIG — 이 부분을 실제 값으로 변경하세요
+════════════════════════════════════════════════════════ */
+const CONFIG = {
+  clientId:   "YOUR_CLIENT_ID",
+  tenantId:   "YOUR_TENANT_ID",
+
+  // 구매신청서 SharePoint 사이트
+  siteUrl:    "https://YOUR-COMPANY.sharepoint.com/sites/YOUR-SITE",
+
+  // ★ BEYOND EARTH HR 사이트 (직원 목록 조회용)
+  hrSiteUrl:  "https://YOUR-COMPANY.sharepoint.com/sites/BEYOND-EARTH-HR",
+  listEmployee: "Employee",   // HR 사이트 리스트명
+
+  listRequests: "구매신청서",
+  listProducts: "상품목록",
+  redirectUri:  "http://localhost:8080",
+
+  /* ════════════════════════════════════════
+     ★★ 결재 권한 설정 — 실제 이메일로 변경
+     ════════════════════════════════════════ */
+  roles: {
+    approver1:    "dajeong@beyonder.co.kr",    // 경영지원팀 1차 승인
+    approverFinal:"account@beyonder.co.kr",    // 최종 승인
+    viewer:       "bobby@beyonder.co.kr",      // 전체 열람 (결재 없음)
+  }
+};
+
+const CONFIG_DONE = !CONFIG.clientId.startsWith("YOUR");
+
+// 현재 로그인 사용자 역할
+function getMyRole() {
+  const email = (currentAccount?.username || '').toLowerCase().trim();
+  if (isDemoMode) {
+    if (email === 'dajeong@beyonder.co.kr')  return 'approver1';
+    if (email === 'account@beyonder.co.kr')  return 'approverFinal';
+    if (email === 'bobby@beyonder.co.kr')    return 'viewer';
+    return 'requester';
+  }
+  const r = CONFIG.roles;
+  if (email === r.approver1.toLowerCase())      return 'approver1';
+  if (email === r.approverFinal.toLowerCase())  return 'approverFinal';
+  if (email === r.viewer.toLowerCase())         return 'viewer';
+  return 'requester';
+}
+
+function canApprove() {
+  const role = getMyRole();
+  return role === 'approver1' || role === 'approverFinal';
+}
+
+// 내 차례인지: 1차승인자는 '대기중', 최종승인자는 '1차승인' 상태일 때
+function isMyTurn(req) {
+  const role = getMyRole();
+  const st = req.status || '대기중';
+  if (role === 'approver1'     && st === '대기중')  return true;
+  if (role === 'approverFinal' && st === '1차승인') return true;
+  return false;
+}
+
+function roleLabelKor(role) {
+  return {approver1:'경영지원팀 (1차)', approverFinal:'최종 승인자', viewer:'전체 열람', requester:'신청자'}[role] || '';
+}
+
+function statusBadgeClass(st) {
+  return {대기중:'badge-amber', '1차승인':'badge-blue', 최종승인:'badge-green', 반려:'badge-red'}[st] || 'badge-amber';
+}
+</script>
+
+<!-- LOGIN SCREEN -->
+<div class="login-screen" id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+        <path d="M4 8h22M4 15h14M4 22h18" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="login-title">구매신청 시스템</div>
+    <div class="login-sub">Microsoft 365 계정으로 로그인하세요</div>
+    <div id="config-warn" style="display:none;" class="config-banner">
+      <div class="config-banner-text"><strong>⚠️ CONFIG 설정 필요:</strong> HTML 파일 상단의 CONFIG 섹션을 수정하세요.</div>
+    </div>
+    <button class="ms-signin-btn" onclick="signIn()">
+      <svg class="ms-logo" viewBox="0 0 21 21" fill="none">
+        <path d="M0 0h10v10H0V0z" fill="#f35325"/><path d="M11 0h10v10H11V0z" fill="#81bc06"/>
+        <path d="M0 11h10v10H0V11z" fill="#05a6f0"/><path d="M11 11h10v10H11V11z" fill="#ffba08"/>
+      </svg>
+      Microsoft 계정으로 로그인
+    </button>
+    <div class="login-divider"><span>개발/테스트 — 역할 선택</span></div>
+    <div class="demo-btns">
+      <button class="demo-btn" onclick="signInDemo('dajeong@beyonder.co.kr','다정')">다정 <span class="demo-role">경영지원팀 1차승인</span></button>
+      <button class="demo-btn" onclick="signInDemo('account@beyonder.co.kr','어카운트')">어카운트 <span class="demo-role">최종승인자</span></button>
+      <button class="demo-btn" onclick="signInDemo('bobby@beyonder.co.kr','Bobby')">Bobby <span class="demo-role">전체열람</span></button>
+      <button class="demo-btn" onclick="signInDemo('user@beyonder.co.kr','일반직원')">일반직원 <span class="demo-role">신청자</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- APP SHELL -->
+<div class="app" id="app-shell" style="display:none;">
+  <nav class="sidebar">
+    <div class="sidebar-top">
+      <div class="sidebar-brand">구매신청 시스템</div>
+      <div class="sidebar-brand-sub">Purchase Request System</div>
+    </div>
+    <div class="sidebar-user">
+      <div class="avatar" id="user-avatar">?</div>
+      <div style="min-width:0;">
+        <div class="user-name" id="user-name">로딩 중...</div>
+        <div class="user-email" id="user-email"></div>
+        <div class="user-role-badge" id="user-role-badge"></div>
+      </div>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-section">메뉴</div>
+      <div class="nav-item active" onclick="showPage('dashboard')">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <rect x="1" y="1" width="6.5" height="6.5" rx="1" fill="currentColor" opacity=".7"/>
+          <rect x="8.5" y="1" width="6.5" height="6.5" rx="1" fill="currentColor"/>
+          <rect x="1" y="8.5" width="6.5" height="6.5" rx="1" fill="currentColor"/>
+          <rect x="8.5" y="8.5" width="6.5" height="6.5" rx="1" fill="currentColor" opacity=".7"/>
+        </svg>
+        대시보드
+      </div>
+      <div class="nav-item" id="nav-approval" style="display:none;" onclick="showPage('approval')">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <path d="M2 4h12M2 8h8M2 12h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="13" cy="12" r="2.5" fill="currentColor"/>
+        </svg>
+        결재함
+        <span class="nav-badge" id="approval-count" style="display:none;">0</span>
+      </div>
+      <div class="nav-item" onclick="showPage('new-request')">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <path d="M8 2.5v11M2.5 8h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        새 신청서 작성
+      </div>
+      <div class="nav-item" onclick="showPage('history')">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <path d="M2 4h12M2 8h8M2 12h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        전체 신청 내역
+      </div>
+      <div class="nav-item" onclick="showPage('catalog')">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <rect x="1.5" y="2" width="13" height="12" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+          <path d="M5 6h6M5 9.5h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+        상품 목록
+      </div>
+      <div class="nav-section" style="margin-top:8px;">내보내기</div>
+      <div class="nav-item" onclick="exportExcel()">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <rect x="1.5" y="2" width="9" height="12" rx="1" stroke="currentColor" stroke-width="1.3"/>
+          <path d="M10.5 5.5l4 4m0-4l-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>
+        Excel 내보내기
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="sp-status">
+        <div class="sp-dot" id="sp-dot"></div>
+        <div class="sp-label" id="sp-label">연결 안 됨</div>
+      </div>
+      <div style="margin-top:8px;">
+        <button class="btn btn-ghost btn-sm" style="color:rgba(255,255,255,.3);padding:4px 0;font-size:11px;" onclick="signOut()">로그아웃</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="header">
+      <div class="header-left">
+        <div class="header-title" id="header-title">대시보드</div>
+        <div class="sync-badge">
+          <div class="sync-dot" id="sync-dot"></div>
+          <span id="sync-label">준비</span>
+        </div>
+      </div>
+      <div class="header-actions" id="header-actions"></div>
+    </div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal-content"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ════ MSAL ════ */
+let msalInstance = null;
+let currentAccount = null;
+let isDemoMode = false;
+
+if (CONFIG_DONE) {
+  msalInstance = new msal.PublicClientApplication({
+    auth: { clientId:CONFIG.clientId, authority:`https://login.microsoftonline.com/${CONFIG.tenantId}`, redirectUri:CONFIG.redirectUri },
+    cache: { cacheLocation:"sessionStorage" }
+  });
+} else {
+  document.getElementById('config-warn').style.display = 'flex';
+}
+
+const SCOPES = ["User.Read","Sites.ReadWrite.All"];
+
+async function signIn() {
+  if (!CONFIG_DONE) { toast('CONFIG 설정이 필요합니다.','error'); return; }
+  try {
+    await msalInstance.initialize();
+    const r = await msalInstance.loginPopup({ scopes: SCOPES });
+    currentAccount = r.account;
+    afterLogin();
+  } catch(e) { toast('로그인 실패: '+(e.message||e),'error'); }
+}
+
+function signInDemo(email, name) {
+  isDemoMode = true;
+  currentAccount = { name, username: email };
+  loadLocalData();
+  afterLogin();
+}
+
+async function getToken() {
+  if (isDemoMode||!msalInstance) return null;
+  try {
+    const r = await msalInstance.acquireTokenSilent({ scopes:SCOPES, account:currentAccount });
+    return r.accessToken;
+  } catch {
+    const r = await msalInstance.acquireTokenPopup({ scopes:SCOPES });
+    return r.accessToken;
+  }
+}
+
+function signOut() {
+  if (!isDemoMode&&msalInstance) msalInstance.logoutPopup({ account:currentAccount });
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app-shell').style.display = 'none';
+}
+
+function afterLogin() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-shell').style.display = 'flex';
+
+  const name = currentAccount.name || currentAccount.username;
+  const email = currentAccount.username || '';
+  const initials = name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('user-avatar').textContent = initials;
+  document.getElementById('user-name').textContent = name;
+  document.getElementById('user-email').textContent = email;
+
+  // 역할 배지
+  const role = getMyRole();
+  const badge = document.getElementById('user-role-badge');
+  badge.textContent = roleLabelKor(role);
+  badge.className = 'user-role-badge role-' + role;
+
+  // 결재함 메뉴: 1차승인자 또는 최종승인자만 표시
+  if (canApprove()) {
+    document.getElementById('nav-approval').style.display = 'flex';
+  }
+
+  if (isDemoMode) {
+    setSyncStatus('demo','데모 모드');
+    setSPStatus(false,'데모 모드');
+  } else {
+    setSPStatus(true,'SharePoint 연결됨');
+    setSyncStatus('synced','연결됨');
+    fetchAllData();
+  }
+  showPage('dashboard');
+}
+
+/* ════ DATA ════ */
+let requests = [];
+let products = [];
+let hrEmployees = [];
+
+function loadLocalData() {
+  try { requests = JSON.parse(localStorage.getItem('pr_requests')||'[]'); } catch { requests=[]; }
+  try { products = JSON.parse(localStorage.getItem('pr_products')||'[]'); } catch { products=[]; }
+}
+function saveLocalData() {
+  localStorage.setItem('pr_requests', JSON.stringify(requests));
+  localStorage.setItem('pr_products', JSON.stringify(products));
+}
+
+/* ════ GRAPH API ════ */
+let spSiteId = null;
+let hrSiteId = null;
+
+async function graphRequest(method, path, body) {
+  const token = await getToken();
+  if (!token) return null;
+  const res = await fetch(`https://graph.microsoft.com/v1.0${path}`, {
+    method,
+    headers: { 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json' },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({}));
+    throw new Error(err.error?.message||`HTTP ${res.status}`);
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+async function getSiteId(url) {
+  const parts = url.replace('https://','').split('/');
+  const host = parts[0];
+  const sitePath = '/'+parts.slice(2).join('/');
+  const data = await graphRequest('GET', `/sites/${host}:${sitePath}`);
+  return data.id;
+}
+
+async function fetchAllData() {
+  setSyncStatus('syncing','동기화 중...');
+  try {
+    spSiteId = await getSiteId(CONFIG.siteUrl);
+    // HR 사이트 직원 목록도 함께 로드
+    try {
+      hrSiteId = await getSiteId(CONFIG.hrSiteUrl);
+      await fetchEmployees(hrSiteId);
+    } catch(e) { console.warn('HR 사이트 로드 실패:', e.message); }
+
+    await Promise.all([fetchRequests(spSiteId), fetchProducts(spSiteId)]);
+    setSyncStatus('synced','동기화 완료');
+    updateApprovalBadge();
+    showPage(currentPage);
+  } catch(e) {
+    console.error(e);
+    setSyncStatus('error','오류: '+e.message);
+    loadLocalData();
+    toast('SharePoint 연결 오류. 로컬 데이터를 사용합니다.','error');
+  }
+}
+
+async function fetchEmployees(siteId) {
+  const data = await graphRequest('GET', `/sites/${siteId}/lists/${CONFIG.listEmployee}/items?expand=fields&$top=500`);
+  if (!data?.value) return;
+  hrEmployees = data.value.map(item => ({
+    id: item.id,
+    name: item.fields.Title || item.fields.EmployeeName || '',
+    email: item.fields.Email || item.fields.WorkEmail || '',
+    dept: item.fields.Department || item.fields.Dept || '',
+    position: item.fields.JobTitle || item.fields.Position || '',
+  }));
+}
+
+async function fetchRequests(siteId) {
+  const data = await graphRequest('GET', `/sites/${siteId}/lists/${CONFIG.listRequests}/items?expand=fields&$top=500&$orderby=createdDateTime desc`);
+  if (!data?.value) return;
+  requests = data.value.map(item => ({
+    id: item.id,
+    dept: item.fields.Title,
+    requester: item.fields.Requester,
+    requesterEmail: item.fields.RequesterEmail || '',
+    submitDept: item.fields.SubmitDept,
+    date: item.fields.RequestDate,
+    items: JSON.parse(item.fields.ItemsJSON||'[]'),
+    total: item.fields.TotalAmount||0,
+    status: item.fields.Status||'대기중',
+    // 결재 이력
+    step1By: item.fields.Step1By||'',
+    step1Date: item.fields.Step1Date||'',
+    finalBy: item.fields.FinalBy||'',
+    finalDate: item.fields.FinalDate||'',
+    rejectReason: item.fields.RejectReason||'',
+    createdAt: new Date(item.createdDateTime).getTime()
+  }));
+  saveLocalData();
+}
+
+async function fetchProducts(siteId) {
+  const data = await graphRequest('GET', `/sites/${siteId}/lists/${CONFIG.listProducts}/items?expand=fields&$top=500`);
+  if (!data?.value) return;
+  products = data.value.map(item => ({
+    id: item.id,
+    name: item.fields.Title,
+    buyin: item.fields.BuyinPrice||0,
+    purchase: item.fields.PurchasePrice||0,
+    uses: item.fields.UseCount||0
+  }));
+  saveLocalData();
+}
+
+async function createRequest(reqData) {
+  if (isDemoMode) {
+    reqData.id = uid(); reqData.createdAt = Date.now(); reqData.status = '대기중';
+    requests.unshift(reqData); saveLocalData(); return reqData;
+  }
+  const fields = {
+    Title: reqData.dept,
+    Requester: reqData.requester,
+    RequesterEmail: currentAccount.username||'',
+    SubmitDept: reqData.submitDept,
+    RequestDate: reqData.date,
+    ItemsJSON: JSON.stringify(reqData.items),
+    TotalAmount: reqData.total,
+    Status: '대기중'
+  };
+  const result = await graphRequest('POST', `/sites/${spSiteId}/lists/${CONFIG.listRequests}/items`, { fields });
+  reqData.id = result.id; reqData.createdAt = Date.now(); reqData.status = '대기중';
+  requests.unshift(reqData); saveLocalData(); return reqData;
+}
+
+async function deleteRequest(id) {
+  if (!isDemoMode) await graphRequest('DELETE', `/sites/${spSiteId}/lists/${CONFIG.listRequests}/items/${id}`);
+  requests = requests.filter(r => r.id !== id);
+  saveLocalData();
+}
+
+async function upsertProductSP(name, buyin, purchase) {
+  const existing = products.find(p => p.name === name);
+  if (isDemoMode) {
+    if (existing) { existing.buyin=buyin; existing.purchase=purchase; existing.uses=(existing.uses||0)+1; }
+    else products.unshift({ id:uid(), name, buyin, purchase, uses:1 });
+    saveLocalData(); return;
+  }
+  if (existing) {
+    await graphRequest('PATCH', `/sites/${spSiteId}/lists/${CONFIG.listProducts}/items/${existing.id}`, {
+      fields: { BuyinPrice:buyin, PurchasePrice:purchase, UseCount:(existing.uses||0)+1 }
+    });
+    existing.buyin=buyin; existing.purchase=purchase; existing.uses=(existing.uses||0)+1;
+  } else {
+    const r = await graphRequest('POST', `/sites/${spSiteId}/lists/${CONFIG.listProducts}/items`, {
+      fields: { Title:name, BuyinPrice:buyin, PurchasePrice:purchase, UseCount:1 }
+    });
+    products.unshift({ id:r.id, name, buyin, purchase, uses:1 });
+  }
+  saveLocalData();
+}
+
+/* ════ 결재 처리 ════ */
+async function processApproval(id, action, reason) {
+  const req = requests.find(r => r.id === id);
+  if (!req) return;
+  const role = getMyRole();
+  const myName = currentAccount.name || currentAccount.username;
+  const now = new Date().toISOString().slice(0,10);
+  let newStatus, fields;
+
+  if (action === 'approve') {
+    if (role === 'approver1') {
+      newStatus = '1차승인';
+      fields = { Status:'1차승인', Step1By:myName, Step1Date:now };
+    } else if (role === 'approverFinal') {
+      newStatus = '최종승인';
+      fields = { Status:'최종승인', FinalBy:myName, FinalDate:now };
+    }
+  } else {
+    // 반려
+    newStatus = '반려';
+    fields = { Status:'반려', RejectReason:reason||'사유 없음', FinalBy:myName, FinalDate:now };
+  }
+
+  if (!isDemoMode) {
+    await graphRequest('PATCH', `/sites/${spSiteId}/lists/${CONFIG.listRequests}/items/${id}`, { fields });
+  }
+  // 로컬 업데이트
+  Object.assign(req, fields, { status: newStatus });
+  saveLocalData();
+  updateApprovalBadge();
+}
+
+/* ════ 결재 대기 뱃지 업데이트 ════ */
+function updateApprovalBadge() {
+  if (!canApprove()) return;
+  const count = requests.filter(r => isMyTurn(r)).length;
+  const badge = document.getElementById('approval-count');
+  if (badge) {
+    badge.textContent = count;
+    badge.style.display = count > 0 ? 'inline-block' : 'none';
+  }
+}
+
+/* ════ EXCEL ════ */
+function exportExcel() {
+  if (!requests.length) { toast('내보낼 신청서가 없습니다.'); return; }
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.aoa_to_sheet([
+    ['No.','신청부서','신청자명','제출부서','신청일자','상품수','합계금액(원)','결재상태','1차승인자','1차승인일','최종승인자','최종승인일','반려사유'],
+    ...requests.map((r,i) => [i+1,r.dept,r.requester,r.submitDept,r.date,r.items?.length||0,r.total||0,r.status||'대기중',r.step1By||'',r.step1Date||'',r.finalBy||'',r.finalDate||'',r.rejectReason||''])
+  ]);
+  ws1['!cols'] = [5,20,15,15,13,8,18,12,15,13,15,13,20].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws1, '신청목록');
+  const ws2 = XLSX.utils.aoa_to_sheet([
+    ['신청부서','신청자','신청일','상품명','수량','사입가','구매가','합계'],
+    ...requests.flatMap(r => (r.items||[]).map(item => [r.dept,r.requester,r.date,item.name,item.qty,item.buyin||0,item.purchase||0,item.total||0]))
+  ]);
+  XLSX.utils.book_append_sheet(wb, ws2, '상품상세');
+  XLSX.writeFile(wb, `구매신청서_${today().replace(/-/g,'')}.xlsx`);
+  toast('Excel 파일 다운로드 완료 ✓','success');
+}
+
+/* ════ UI HELPERS ════ */
+function fmt(n) { return parseNum(n).toLocaleString('ko-KR'); }
+function parseNum(s) { if (typeof s==='number') return s; return parseInt(String(s||'').replace(/[^0-9]/g,''))||0; }
+function today() { return new Date().toISOString().slice(0,10); }
+function fmtDate(d) { return d ? d.replace(/-/g,'.') : ''; }
+function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
+function esc(s) { return String(s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+
+function toast(msg, type='', dur=3000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show'+(type ? ' '+type : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(()=>el.classList.remove('show'), dur);
+}
+function setSyncStatus(state, label) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  if (!dot||!lbl) return;
+  dot.className = 'sync-dot'+(state==='syncing'?' syncing':state==='synced'?' synced':'');
+  lbl.textContent = label;
+}
+function setSPStatus(online, label) {
+  const dot = document.getElementById('sp-dot');
+  const lbl = document.getElementById('sp-label');
+  if (!dot||!lbl) return;
+  dot.className = 'sp-dot'+(online?' online':'');
+  lbl.className = 'sp-label'+(online?' online':'');
+  lbl.textContent = label;
+}
+
+let currentPage = 'dashboard';
+function showPage(page) {
+  currentPage = page;
+  const navMap = {dashboard:0, approval:1, 'new-request':2, history:3, catalog:4};
+  document.querySelectorAll('.nav-item').forEach((el,i)=> {
+    const pageKeys = ['dashboard','approval','new-request','history','catalog'];
+    el.classList.toggle('active', pageKeys[i] === page);
+  });
+  const titles = {dashboard:'대시보드', approval:'결재함', 'new-request':'새 구매신청서', history:'전체 신청 내역', catalog:'상품 목록'};
+  document.getElementById('header-title').textContent = titles[page]||'';
+  document.getElementById('header-actions').innerHTML = '';
+  document.getElementById('content').innerHTML = '';
+  ({dashboard:renderDashboard, approval:renderApproval, 'new-request':renderNewRequest, history:renderHistory, catalog:renderCatalog})[page]?.();
+}
+
+/* ════════════════════════════════════════════
+   DASHBOARD
+════════════════════════════════════════════ */
+function renderDashboard() {
+  const c = document.getElementById('content');
+  const role = getMyRole();
+  const totalAmt = requests.reduce((s,r)=>s+(r.total||0),0);
+  const thisMonth = requests.filter(r=>r.date?.slice(0,7)===today().slice(0,7));
+  const myPending = requests.filter(r=>isMyTurn(r));
+  const recent = [...requests].sort((a,b)=>b.createdAt-a.createdAt).slice(0,5);
+
+  document.getElementById('header-actions').innerHTML = `
+    <button class="btn btn-secondary btn-sm" onclick="fetchAllData()">↻ 새로고침</button>
+    <button class="btn btn-primary btn-sm" onclick="showPage('new-request')">+ 새 신청서</button>
+  `;
+
+  c.innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">전체 신청</div><div class="stat-value">${requests.length}</div><div class="stat-sub">건</div></div>
+      <div class="stat-card"><div class="stat-label">이번 달</div><div class="stat-value">${thisMonth.length}</div><div class="stat-sub">${today().slice(0,7).replace('-','년 ')}월</div></div>
+      <div class="stat-card"><div class="stat-label">전체 구매 금액</div><div class="stat-value stat-accent" style="font-size:18px;">${fmt(totalAmt)}</div><div class="stat-sub">원 (VAT포함)</div></div>
+      ${canApprove()
+        ? `<div class="stat-card" style="border-color:${myPending.length?'var(--amber)':'var(--border)'}">
+            <div class="stat-label">내 결재 대기</div>
+            <div class="stat-value" style="color:${myPending.length?'var(--amber)':'var(--text)'}">${myPending.length}</div>
+            <div class="stat-sub">건 처리 필요</div>
+          </div>`
+        : `<div class="stat-card"><div class="stat-label">등록 상품 수</div><div class="stat-value">${products.length}</div><div class="stat-sub">종</div></div>`
+      }
+    </div>
+    ${canApprove() && myPending.length ? `
+    <div class="card" style="margin-bottom:16px;border-color:var(--amber);">
+      <div class="card-header" style="padding-bottom:14px;">
+        <span class="card-title" style="color:var(--amber);">⚡ 결재 대기 중 (${myPending.length}건)</span>
+        <button class="btn btn-ghost btn-sm" onclick="showPage('approval')">결재함 열기 →</button>
+      </div>
+      <div style="padding:0 24px 18px;display:flex;flex-direction:column;gap:8px;">
+        ${myPending.slice(0,3).map(r=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--amber-light);border-radius:var(--r);cursor:pointer;" onclick="viewRequest('${r.id}')">
+            <div>
+              <div style="font-size:13px;font-weight:500;">${r.dept||'–'} · ${r.requester||'–'}</div>
+              <div style="font-size:11px;color:var(--text2);margin-top:2px;">${fmtDate(r.date)} · ${fmt(r.total)}원</div>
+            </div>
+            <span class="badge badge-amber">${r.status||'대기중'}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>` : ''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div class="card">
+        <div class="card-header" style="padding-bottom:16px;"><span class="card-title">최근 신청 내역</span><button class="btn btn-ghost btn-sm" onclick="showPage('history')">전체보기 →</button></div>
+        <div id="dash-recent" style="padding:0 24px 20px;"></div>
+      </div>
+      <div class="card">
+        <div class="card-header" style="padding-bottom:16px;"><span class="card-title">자주 구매 상품 Top 6</span><button class="btn btn-ghost btn-sm" onclick="showPage('catalog')">전체보기 →</button></div>
+        <div id="dash-products" style="padding:0 24px 20px;"></div>
+      </div>
+    </div>
+  `;
+
+  const recentEl = document.getElementById('dash-recent');
+  if (!recent.length) { recentEl.innerHTML=`<div style="color:var(--text3);font-size:13px;padding:10px 0;">아직 신청 내역이 없습니다.</div>`; }
+  else recentEl.innerHTML = recent.map(r=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="viewRequest('${r.id}')">
+      <div><div style="font-size:13px;font-weight:500;">${r.dept||'–'} · ${r.requester||'–'}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:2px;">${fmtDate(r.date)} · <span class="badge ${statusBadgeClass(r.status||'대기중')}" style="font-size:10px;">${r.status||'대기중'}</span></div></div>
+      <div style="font-size:13px;font-weight:500;font-family:'DM Mono',monospace;color:var(--accent);">${fmt(r.total)}원</div>
+    </div>
+  `).join('');
+
+  const topProds = [...products].sort((a,b)=>(b.uses||0)-(a.uses||0)).slice(0,6);
+  const prodEl = document.getElementById('dash-products');
+  if (!topProds.length) { prodEl.innerHTML=`<div style="color:var(--text3);font-size:13px;padding:10px 0;">상품 데이터가 없습니다.</div>`; }
+  else prodEl.innerHTML = topProds.map((p,i)=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="width:20px;height:20px;background:var(--surface2);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:var(--text3);">${i+1}</span>
+        <span style="font-size:13px;">${p.name}</span>
+      </div>
+      <span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;">${fmt(p.purchase)}원 · ${p.uses||0}회</span>
+    </div>
+  `).join('');
+}
+
+/* ════════════════════════════════════════════
+   결재함 페이지
+════════════════════════════════════════════ */
+function renderApproval() {
+  const c = document.getElementById('content');
+  const role = getMyRole();
+  if (!canApprove()) {
+    c.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔒</div><div class="empty-state-text">결재 권한이 없습니다.</div></div>`;
+    return;
+  }
+
+  document.getElementById('header-actions').innerHTML = `
+    <button class="btn btn-secondary btn-sm" onclick="fetchAllData()">↻ 새로고침</button>
+  `;
+
+  // 탭: 내 결재 대기 / 처리 완료
+  const myPending  = requests.filter(r => isMyTurn(r)).sort((a,b)=>a.createdAt-b.createdAt);
+  const myDone     = requests.filter(r => {
+    if (role==='approver1')    return r.step1By && !isMyTurn(r);
+    if (role==='approverFinal') return r.finalBy && !isMyTurn(r);
+    return false;
+  }).sort((a,b)=>b.createdAt-a.createdAt).slice(0,30);
+
+  c.innerHTML = `
+    <div style="display:flex;gap:10px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:0;">
+      <div id="tab-pending" onclick="switchTab('pending')" style="padding:10px 16px;cursor:pointer;font-size:13px;font-weight:500;border-bottom:2px solid var(--accent);color:var(--accent);">
+        결재 대기 <span style="background:var(--amber);color:#fff;font-size:10px;padding:1px 7px;border-radius:999px;margin-left:4px;">${myPending.length}</span>
+      </div>
+      <div id="tab-done" onclick="switchTab('done')" style="padding:10px 16px;cursor:pointer;font-size:13px;color:var(--text2);border-bottom:2px solid transparent;">
+        처리 완료 <span style="background:var(--surface2);color:var(--text3);font-size:10px;padding:1px 7px;border-radius:999px;margin-left:4px;">${myDone.length}</span>
+      </div>
+    </div>
+    <div id="tab-content-pending">
+      ${myPending.length === 0
+        ? `<div class="empty-state"><div class="empty-state-icon">✅</div><div class="empty-state-text">처리할 결재가 없습니다.</div></div>`
+        : `<div class="request-list">${myPending.map(r=>requestItemHtml(r, true)).join('')}</div>`
+      }
+    </div>
+    <div id="tab-content-done" style="display:none;">
+      ${myDone.length === 0
+        ? `<div class="empty-state"><div class="empty-state-text">처리 완료 내역이 없습니다.</div></div>`
+        : `<div class="request-list">${myDone.map(r=>requestItemHtml(r, false)).join('')}</div>`
+      }
+    </div>
+  `;
+}
+
+function switchTab(tab) {
+  document.getElementById('tab-content-pending').style.display = tab==='pending'?'':'none';
+  document.getElementById('tab-content-done').style.display    = tab==='done'   ?'':'none';
+  document.getElementById('tab-pending').style.cssText = tab==='pending'
+    ? 'padding:10px 16px;cursor:pointer;font-size:13px;font-weight:500;border-bottom:2px solid var(--accent);color:var(--accent);'
+    : 'padding:10px 16px;cursor:pointer;font-size:13px;color:var(--text2);border-bottom:2px solid transparent;';
+  document.getElementById('tab-done').style.cssText = tab==='done'
+    ? 'padding:10px 16px;cursor:pointer;font-size:13px;font-weight:500;border-bottom:2px solid var(--accent);color:var(--accent);'
+    : 'padding:10px 16px;cursor:pointer;font-size:13px;color:var(--text2);border-bottom:2px solid transparent;';
+}
+
+function requestItemHtml(r, showAction) {
+  return `
+    <div class="request-item${isMyTurn(r)?' need-action':''}" onclick="viewRequest('${r.id}')">
+      <div class="request-item-info">
+        <div class="request-item-title">${r.dept||'–'} · ${r.requester||'–'}</div>
+        <div class="request-item-meta">
+          <span>${fmtDate(r.date)}</span>
+          <span>${r.items?.length||0}개 상품</span>
+          <span>${r.submitDept||''}</span>
+          <span class="badge ${statusBadgeClass(r.status||'대기중')}">${r.status||'대기중'}</span>
+          ${r.rejectReason ? `<span style="color:var(--red);font-size:11px;">반려: ${r.rejectReason}</span>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-size:14px;font-weight:500;font-family:'DM Mono',monospace;color:var(--accent);">${fmt(r.total)}원</div>
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="var(--text3)" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </div>
+    </div>
+  `;
+}
+
+/* ════════════════════════════════════════════
+   NEW REQUEST
+════════════════════════════════════════════ */
+let editRows = [];
+let editId = null;
+
+function renderNewRequest(prefill) {
+  editRows = prefill?.items ? prefill.items.map(r=>({...r})) : [];
+  editId = prefill?.id || null;
+  const c = document.getElementById('content');
+  c.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-body">
+        <div class="form-grid">
+          <div class="field"><label>신청 부서 *</label><input type="text" id="f-dept" value="${prefill?.dept||''}" placeholder="부서명 입력"></div>
+          <div class="field"><label>신청자명 *</label><div class="sig-wrap"><input type="text" id="f-req" value="${prefill?.requester||''}" placeholder="성명 입력"><div class="stamp">(인)</div></div></div>
+          <div class="field"><label>제출 부서</label><input type="text" id="f-sdept" value="${prefill?.submitDept||'경영지원팀'}"></div>
+          <div class="field"><label>신청 일자</label><input type="date" id="f-date" value="${prefill?.date||today()}"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header"><span class="card-title">구매 상품 목록</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th style="width:36px;">No.</th><th>상 품 명</th>
+            <th style="width:70px;">수 량</th>
+            <th style="width:130px;">사 입 가 (VAT포함)</th>
+            <th style="width:130px;">구 매 가 (VAT포함)</th>
+            <th style="width:120px;">합 계</th>
+            <th style="width:36px;"></th>
+          </tr></thead>
+          <tbody id="rows-body"></tbody>
+          <tfoot><tr>
+            <td colspan="5" class="grand-label">합 계</td>
+            <td class="grand-total" id="grand-total">0</td>
+            <td></td>
+          </tr></tfoot>
+        </table>
+      </div>
+      <div class="add-row-row"><button class="btn btn-secondary btn-sm" onclick="addEditRow()">+ 행 추가</button></div>
+      ${products.length ? `
+      <div class="chips-wrap">
+        <div style="width:100%;font-size:11px;color:var(--text3);font-weight:500;margin-bottom:6px;">이전 구매 상품 빠른 추가</div>
+        ${products.slice(0,20).map(p=>`<span class="chip" onclick="quickAdd('${esc(p.name)}',${p.buyin||0},${p.purchase||0})">${p.name}</span>`).join('')}
+      </div>` : ''}
+    </div>
+  `;
+  document.getElementById('header-actions').innerHTML = `
+    <button class="btn btn-secondary btn-sm" onclick="showPage('dashboard')">취소</button>
+    <button class="btn btn-primary btn-sm" id="submit-btn" onclick="submitRequest()"><span id="submit-label">저장 및 제출</span></button>
+  `;
+  if (!editRows.length) [0,0,0,0,0].forEach(()=>addEditRow());
+  renderEditRows();
+}
+
+function addEditRow(prefill) {
+  editRows.push(prefill||{name:'',qty:'',buyin:'',purchase:'',total:0});
+  renderEditRows();
+}
+function removeEditRow(i) { editRows.splice(i,1); renderEditRows(); updateGT(); }
+function updateEditRow(i,field,val) {
+  editRows[i][field]=val;
+  const r=editRows[i]; r.total=parseNum(r.qty)*parseNum(r.purchase);
+  const el=document.getElementById('rt-'+i); if(el) el.textContent=r.total?fmt(r.total):'';
+  updateGT();
+}
+function updateGT() {
+  const total=editRows.reduce((s,r)=>s+(r.total||0),0);
+  const el=document.getElementById('grand-total'); if(el) el.textContent=fmt(total);
+}
+function renderEditRows() {
+  const tbody=document.getElementById('rows-body'); if(!tbody) return;
+  tbody.innerHTML=editRows.map((r,i)=>`
+    <tr>
+      <td class="no-cell">${i+1}</td>
+      <td><div class="product-wrap">
+        <input type="text" value="${esc(r.name)}" placeholder="상품명 입력"
+          oninput="editRows[${i}].name=this.value;showSuggest(${i},this.value)"
+          onblur="setTimeout(()=>hideSuggest(${i}),200)" onfocus="showSuggest(${i},this.value)"
+          style="padding:9px 8px;">
+        <div class="suggestions" id="sug-${i}" style="display:none;"></div>
+      </div></td>
+      <td><input type="text" value="${r.qty||''}" placeholder="0" oninput="updateEditRow(${i},'qty',this.value)" style="text-align:center;padding:9px 8px;"></td>
+      <td><input class="num" type="text" value="${r.buyin?fmt(r.buyin):''}" placeholder="0"
+        oninput="editRows[${i}].buyin=parseNum(this.value);this.value=this.value.replace(/[^0-9]/g,'')"
+        onblur="this.value=editRows[${i}].buyin?fmt(editRows[${i}].buyin):''"></td>
+      <td><input class="num" type="text" value="${r.purchase?fmt(r.purchase):''}" placeholder="0"
+        oninput="updateEditRow(${i},'purchase',parseNum(this.value));this.value=this.value.replace(/[^0-9]/g,'')"
+        onblur="this.value=editRows[${i}].purchase?fmt(editRows[${i}].purchase):''"></td>
+      <td class="total-cell" id="rt-${i}">${r.total?fmt(r.total):''}</td>
+      <td class="act-cell"><button class="del-btn" onclick="removeEditRow(${i})">✕</button></td>
+    </tr>
+  `).join('');
+}
+function showSuggest(idx,val) {
+  const el=document.getElementById('sug-'+idx); if(!el||!products.length) return;
+  const list=val?products.filter(p=>p.name.includes(val)):products.slice(0,10);
+  if(!list.length){el.style.display='none';return;}
+  el.style.display='block';
+  el.innerHTML=list.map(p=>`<div class="sug-item" onmousedown="selectSuggest(${idx},'${esc(p.name)}',${p.buyin||0},${p.purchase||0})"><span class="sug-name">${p.name}</span><span class="sug-price">${p.purchase?fmt(p.purchase)+'원':''}</span></div>`).join('');
+}
+function hideSuggest(idx){const el=document.getElementById('sug-'+idx);if(el)el.style.display='none';}
+function selectSuggest(idx,name,buyin,purchase){
+  editRows[idx]={name,buyin,purchase,qty:editRows[idx].qty||1,total:parseNum(editRows[idx].qty||1)*parseNum(purchase)};
+  renderEditRows();updateGT();
+}
+function quickAdd(name,buyin,purchase){
+  const ei=editRows.findIndex(r=>!r.name?.trim());
+  if(ei>=0) selectSuggest(ei,name,buyin,purchase);
+  else addEditRow({name,buyin,purchase,qty:1,total:parseNum(purchase)});
+}
+async function submitRequest() {
+  const dept=document.getElementById('f-dept')?.value?.trim();
+  const requester=document.getElementById('f-req')?.value?.trim();
+  const submitDept=document.getElementById('f-sdept')?.value?.trim();
+  const date=document.getElementById('f-date')?.value;
+  if(!dept){toast('신청 부서를 입력하세요.','error');return;}
+  if(!requester){toast('신청자명을 입력하세요.','error');return;}
+  const validRows=editRows.filter(r=>r.name?.trim());
+  if(!validRows.length){toast('상품을 1개 이상 입력하세요.','error');return;}
+  const btn=document.getElementById('submit-btn');
+  const label=document.getElementById('submit-label');
+  btn.disabled=true; label.innerHTML='<span class="loader"></span> 저장 중...';
+  try {
+    const total=validRows.reduce((s,r)=>s+(r.total||0),0);
+    const reqData={dept,requester,submitDept,date,items:validRows,total};
+    await createRequest(reqData);
+    for(const r of validRows) await upsertProductSP(r.name,parseNum(r.buyin),parseNum(r.purchase));
+    updateApprovalBadge();
+    toast('신청서가 저장되었습니다 ✓','success');
+    setTimeout(()=>showPage('history'),700);
+  } catch(e) {
+    toast('저장 실패: '+e.message,'error');
+    btn.disabled=false; label.textContent='저장 및 제출';
+  }
+}
+
+/* ════════════════════════════════════════════
+   HISTORY
+════════════════════════════════════════════ */
+function renderHistory() {
+  const c = document.getElementById('content');
+  const sorted = [...requests].sort((a,b)=>b.createdAt-a.createdAt);
+  document.getElementById('header-actions').innerHTML = `
+    <button class="btn btn-secondary btn-sm" onclick="exportExcel()">Excel 내보내기</button>
+    <button class="btn btn-primary btn-sm" onclick="showPage('new-request')">+ 새 신청서</button>
+  `;
+  if (!sorted.length) {
+    c.innerHTML=`<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">아직 신청 내역이 없습니다.</div><button class="btn btn-primary" onclick="showPage('new-request')">첫 신청서 작성</button></div>`;
+    return;
+  }
+  c.innerHTML=`
+    <div style="margin-bottom:12px;font-size:12px;color:var(--text2);">총 ${sorted.length}건</div>
+    <div class="request-list">${sorted.map(r=>requestItemHtml(r,false)).join('')}</div>
+  `;
+}
+
+/* ════════════════════════════════════════════
+   CATALOG
+════════════════════════════════════════════ */
+function renderCatalog() {
+  const c = document.getElementById('content');
+  if (!products.length) {
+    c.innerHTML=`<div class="empty-state"><div class="empty-state-icon">📦</div><div class="empty-state-text">등록된 상품이 없습니다.</div></div>`;return;
+  }
+  const sorted=[...products].sort((a,b)=>(b.uses||0)-(a.uses||0));
+  c.innerHTML=`
+    <div style="margin-bottom:14px;font-size:12px;color:var(--text2);">총 ${sorted.length}개</div>
+    <div class="product-grid">
+      ${sorted.map(p=>`
+        <div class="product-card">
+          <div style="font-size:13px;font-weight:500;margin-bottom:8px;">${p.name}</div>
+          <div style="font-size:10px;color:var(--text3);">구매가</div>
+          <div style="font-family:'DM Mono',monospace;font-size:13px;margin-bottom:6px;">${fmt(p.purchase)}원</div>
+          ${p.buyin?`<div style="font-size:10px;color:var(--text3);">사입가</div><div style="font-family:'DM Mono',monospace;font-size:13px;margin-bottom:6px;">${fmt(p.buyin)}원</div>`:''}
+          <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">구매 ${p.uses||0}회</div>
+          <button class="btn btn-secondary btn-sm" onclick="quickNewReq('${esc(p.name)}',${p.buyin||0},${p.purchase||0})">신청에 추가</button>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+function quickNewReq(name,buyin,purchase){showPage('new-request');setTimeout(()=>quickAdd(name,buyin,purchase),50);}
+
+/* ════════════════════════════════════════════
+   VIEW REQUEST MODAL (결재 버튼 포함)
+════════════════════════════════════════════ */
+function viewRequest(id) {
+  const r = requests.find(x=>x.id===id);
+  if (!r) return;
+  const role = getMyRole();
+  const myTurn = isMyTurn(r);
+  const st = r.status || '대기중';
+
+  // 결재 타임라인
+  const step1Done = ['1차승인','최종승인'].includes(st);
+  const finalDone = st === '최종승인';
+  const rejected  = st === '반려';
+
+  const timelineHtml = `
+    <div class="approval-timeline">
+      <div class="approval-timeline-title">결재 진행 현황</div>
+      <div class="approval-steps">
+        <div class="approval-step done">
+          <div class="step-circle">제출</div>
+          <div class="step-label">신청 제출</div>
+          <div class="step-sub">${fmtDate(r.date)}</div>
+        </div>
+        <div class="approval-step ${rejected&&!step1Done?'rejected':step1Done?'done':st==='대기중'?'pending':''}">
+          <div class="step-circle">1차</div>
+          <div class="step-label">경영지원팀</div>
+          <div class="step-sub">${r.step1By?r.step1By+' '+fmtDate(r.step1Date):(rejected?'반려':'대기중')}</div>
+        </div>
+        <div class="approval-step ${finalDone?'done':rejected?'rejected':step1Done?'pending':''}">
+          <div class="step-circle">최종</div>
+          <div class="step-label">최종 승인</div>
+          <div class="step-sub">${r.finalBy?r.finalBy+' '+fmtDate(r.finalDate):(rejected?'반려':step1Done?'대기중':'-')}</div>
+        </div>
+      </div>
+      ${r.rejectReason ? `<div style="margin-top:12px;padding:10px 14px;background:var(--red-light);border-radius:var(--r);font-size:12px;color:var(--red);"><strong>반려 사유:</strong> ${r.rejectReason}</div>` : ''}
+    </div>
+  `;
+
+  // 결재 액션 박스 (내 차례일 때만 표시)
+  let approveBoxHtml = '';
+  if (myTurn) {
+    const isFinal = role === 'approverFinal';
+    approveBoxHtml = `
+      <div class="approve-action-box ${isFinal?'approve-action-final':''}">
+        <div class="approve-action-title">
+          ${isFinal
+            ? '📋 최종 승인 처리'
+            : '📋 1차 승인 처리 (경영지원팀)'}
+        </div>
+        <textarea class="reject-reason-input" id="reject-reason" rows="2" placeholder="반려 시 사유를 입력하세요 (승인 시 불필요)"></textarea>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button class="btn btn-approve" style="flex:1;" onclick="doApprove('${r.id}')">
+            ✓ ${isFinal?'최종 승인':'1차 승인'}
+          </button>
+          <button class="btn btn-reject" style="flex:1;" onclick="doReject('${r.id}')">
+            ✕ 반려
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  // 하단 버튼 (역할별 분기)
+  const canEdit = (role === 'requester' && st === '대기중') || role === 'viewer';
+  const canDelete = role === 'viewer' || (role === 'requester' && st === '대기중');
+
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="modal-title">구매신청서 상세</div>
+        <span class="badge ${statusBadgeClass(st)}">${st}</span>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid" style="margin-bottom:16px;">
+        <div class="field"><label>신청 부서</label><input readonly value="${r.dept||''}"></div>
+        <div class="field"><label>신청자명</label><input readonly value="${r.requester||''}"></div>
+        <div class="field"><label>제출 부서</label><input readonly value="${r.submitDept||''}"></div>
+        <div class="field"><label>신청 일자</label><input readonly value="${r.date||''}"></div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:16px;">
+        <table>
+          <thead><tr>
+            <th style="width:36px;">No.</th><th>상 품 명</th>
+            <th style="width:60px;">수 량</th>
+            <th style="width:110px;">사 입 가</th>
+            <th style="width:110px;">구 매 가</th>
+            <th style="width:110px;">합 계</th>
+          </tr></thead>
+          <tbody>
+            ${(r.items||[]).map((item,i)=>`<tr>
+              <td class="no-cell">${i+1}</td>
+              <td style="padding:8px 10px;">${item.name||''}</td>
+              <td style="text-align:center;padding:8px;">${item.qty||''}</td>
+              <td style="text-align:right;padding:8px 10px;font-family:'DM Mono',monospace;font-size:12px;">${item.buyin?fmt(item.buyin):''}</td>
+              <td style="text-align:right;padding:8px 10px;font-family:'DM Mono',monospace;font-size:12px;">${item.purchase?fmt(item.purchase):''}</td>
+              <td style="text-align:right;padding:8px 10px;font-family:'DM Mono',monospace;font-size:12px;">${item.total?fmt(item.total):''}</td>
+            </tr>`).join('')}
+          </tbody>
+          <tfoot><tr>
+            <td colspan="5" class="grand-label">합 계</td>
+            <td class="grand-total">${fmt(r.total)}</td>
+          </tr></tfoot>
+        </table>
+      </div>
+      ${timelineHtml}
+      ${approveBoxHtml}
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+        <button class="btn btn-secondary btn-sm" onclick="printRequest('${id}')">인쇄</button>
+        ${canEdit?`<button class="btn btn-secondary btn-sm" onclick="editReq('${id}')">수정</button>`:''}
+        ${canDelete?`<button class="btn btn-danger btn-sm" onclick="confirmDelete('${id}')">삭제</button>`:''}
+        <button class="btn btn-primary btn-sm" onclick="closeModal()">닫기</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function doApprove(id) {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loader"></span>';
+  try {
+    await processApproval(id, 'approve', '');
+    closeModal();
+    toast('승인 처리되었습니다 ✓','success');
+    showPage(currentPage);
+  } catch(e) {
+    toast('처리 실패: '+e.message,'error');
+    btn.disabled = false;
+  }
+}
+
+async function doReject(id) {
+  const reason = document.getElementById('reject-reason')?.value?.trim();
+  if (!reason) { toast('반려 사유를 입력해주세요.','error'); return; }
+  if (!confirm(`반려 처리하시겠습니까?\n사유: ${reason}`)) return;
+  try {
+    await processApproval(id, 'reject', reason);
+    closeModal();
+    toast('반려 처리되었습니다.','error');
+    showPage(currentPage);
+  } catch(e) {
+    toast('처리 실패: '+e.message,'error');
+  }
+}
+
+function closeModal(e) {
+  if (!e||e.target===document.getElementById('modal-overlay'))
+    document.getElementById('modal-overlay').classList.remove('open');
+}
+function editReq(id) {
+  closeModal();
+  const r=requests.find(x=>x.id===id); if(!r) return;
+  showPage('new-request'); setTimeout(()=>renderNewRequest(r),10);
+}
+async function confirmDelete(id) {
+  if(!confirm('이 신청서를 삭제할까요?')) return;
+  try { await deleteRequest(id); closeModal(); showPage('history'); toast('삭제되었습니다.','success'); }
+  catch(e) { toast('삭제 실패: '+e.message,'error'); }
+}
+
+function printRequest(id) {
+  const r=requests.find(x=>x.id===id); if(!r) return;
+  const win=window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>상품구매신청서</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>body{font-family:'Noto Sans KR',sans-serif;padding:40px;font-size:13px;}h1{text-align:center;font-size:20px;letter-spacing:.2em;margin-bottom:28px;font-weight:700;}
+  .info-tbl{width:100%;border-collapse:collapse;margin-bottom:20px;}.info-tbl td{border:1px solid #ccc;padding:8px 12px;}.info-tbl .lbl{background:#f5f5f3;font-weight:500;width:100px;}
+  table{width:100%;border-collapse:collapse;margin-bottom:20px;}th,td{border:1px solid #ccc;padding:8px;text-align:center;}th{background:#f5f5f3;font-weight:500;}.num{text-align:right;font-family:monospace;}
+  tfoot td{font-weight:700;background:#f5f5f3;}.approve-row{margin-top:20px;display:flex;gap:20px;}.approve-cell{border:1px solid #ccc;flex:1;padding:12px 16px;}.approve-label{font-size:11px;color:#888;margin-bottom:28px;}</style>
+  </head><body>
+  <h1>상 품 구 매 신 청 서</h1>
+  <table class="info-tbl">
+    <tr><td class="lbl">신청 부서</td><td>${r.dept||''}</td><td class="lbl">신청자명</td><td>${r.requester||''} (인)</td></tr>
+    <tr><td class="lbl">제출 부서</td><td>${r.submitDept||''}</td><td class="lbl">신청 일자</td><td>${r.date||''}</td></tr>
+  </table>
+  <table>
+    <thead><tr><th>No.</th><th>상품명</th><th>수량</th><th>사입가</th><th>구매가</th><th>합계</th></tr></thead>
+    <tbody>${(r.items||[]).map((item,i)=>`<tr><td>${i+1}</td><td style="text-align:left;padding-left:10px;">${item.name||''}</td><td>${item.qty||''}</td><td class="num">${item.buyin?parseNum(item.buyin).toLocaleString('ko-KR'):''}</td><td class="num">${item.purchase?parseNum(item.purchase).toLocaleString('ko-KR'):''}</td><td class="num">${item.total?parseNum(item.total).toLocaleString('ko-KR'):''}</td></tr>`).join('')}</tbody>
+    <tfoot><tr><td colspan="5" style="text-align:right;padding-right:12px;">합 계</td><td class="num">${parseNum(r.total).toLocaleString('ko-KR')}</td></tr></tfoot>
+  </table>
+  <div class="approve-row">
+    <div class="approve-cell"><div class="approve-label">1차 승인 (경영지원팀)</div>${r.step1By||''}<br><small>${r.step1Date||''}</small></div>
+    <div class="approve-cell"><div class="approve-label">최종 승인</div>${r.finalBy||''}<br><small>${r.finalDate||''}</small></div>
+  </div>
+  </body></html>`);
+  win.document.close(); setTimeout(()=>win.print(),600);
+}
+
+/* ════ INIT ════ */
+if (!CONFIG_DONE) document.getElementById('config-warn').style.display = 'flex';
+
+if (msalInstance) {
+  msalInstance.initialize().then(()=>{
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length > 0) {
+      currentAccount = accounts[0];
+      msalInstance.acquireTokenSilent({ scopes:SCOPES, account:currentAccount })
+        .then(()=>afterLogin()).catch(()=>{});
+    }
+  });
+}
+</script>
+</body>
+</html>
